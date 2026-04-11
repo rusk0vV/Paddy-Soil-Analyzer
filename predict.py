@@ -17,7 +17,6 @@ K_RANGE = (0, 55)
 PH_RANGE = (3.5, 9.0)
 EC_RANGE = (0, 3500)
 ORP_RANGE = (-350, 350)
-ORP_FLOOD_VOLUME_LITERS = 10000.0
 
 
 npk_model = joblib.load(NPK_MODEL_FILE)
@@ -174,13 +173,12 @@ def phase2_predict(ORP):
     validate_range("ORP_mV", ORP, *ORP_RANGE)
 
     orp_input = pd.DataFrame([[ORP]], columns=["ORP_mV"])
-    orp_prediction = orp_model.predict(orp_input)[0]
-    # Support both classifier output (0/1) and legacy regressor output (0/10000).
-    flood_needed = float(orp_prediction) > 0.5
+    orp_prediction = float(orp_model.predict(orp_input)[0])
+    flood_liters = max(0.0, min(10000.0, orp_prediction))
 
     return {
         "Health_Status": get_phase2_health_status(ORP),
-        "Phase2_ORP_Flood_Water_Liters": ORP_FLOOD_VOLUME_LITERS if flood_needed else 0.0,
+        "Phase2_ORP_Flood_Water_Liters": flood_liters,
     }
 
 

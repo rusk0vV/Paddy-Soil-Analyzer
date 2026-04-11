@@ -48,6 +48,16 @@ df = pd.concat([trouble_df, low_ec_df, optimal_df], ignore_index=True)
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 # Define the agronomist logic for all 9 outputs
+def calculate_phase2_flood_water(orp_mV):
+    # Flooding demand should increase smoothly as ORP rises and the soil becomes more oxidized.
+    normalized_orp = (orp_mV + 350.0) / 700.0
+    normalized_orp = min(max(normalized_orp, 0.0), 1.0)
+
+    # Use a curved response so nearby ORP readings produce distinct water values.
+    water_liters = 10000.0 * (normalized_orp ** 1.65)
+    return round(water_liters, 2)
+
+
 def calculate_all_outputs(row):
     # --- 1. HEALTH STATUS ---
     if row['EC_uS_cm'] < 300:
@@ -85,10 +95,7 @@ def calculate_all_outputs(row):
     else:
         phase1_water_L = 0.0
         
-    if row['ORP_mV'] > 150:
-        phase2_water_L = 10000.0
-    else:
-        phase2_water_L = 0.0
+    phase2_water_L = calculate_phase2_flood_water(row['ORP_mV'])
         
     # --- 5. LIME / GYPSUM AMENDMENTS (kg/acre) ---
     lime_kg = 0.0
@@ -127,6 +134,7 @@ def main():
     print(f"Optimal Rows: {len(df[df['Health_Status'] == 'Optimal'])}")
     print(f"Rows with non-zero Phase 1 Water (High EC): {len(df[df['Phase1_EC_Flush_Water_Liters'] > 0])}")
     print(f"Rows with non-zero Phase 2 Water (High ORP): {len(df[df['Phase2_ORP_Flood_Water_Liters'] > 0])}")
+    print(f"Unique Phase 2 Water values: {df['Phase2_ORP_Flood_Water_Liters'].nunique()}")
     print(f"Rows with non-zero Lime: {len(df[df['Lime_kg_per_acre'] > 0])}")
     print(f"Rows with non-zero Gypsum: {len(df[df['Gypsum_kg_per_acre'] > 0])}")
 
